@@ -27,7 +27,7 @@ const styles = `
   .app-wrap { width: 100%; max-width: 450px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; position: relative; }
 
   .app-header { display: flex; align-items: center; justify-content: space-between; padding: 20px; position: sticky; top: 0; z-index: 100; background: var(--bg); }
-  .user-badge { width: 42px; height: 42px; border-radius: 50%; overflow: hidden; background: #232d3d; border: 2px solid var(--primary); cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+  .user-badge { width: 42px; height: 42px; border-radius: 50%; overflow: hidden; background: #232d3d; border: 2px solid var(--primary); cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; text-transform: uppercase; color: var(--primary); }
   .user-badge img { width: 100%; height: 100%; object-fit: cover; }
   .header-status { font-size: 11px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
 
@@ -96,6 +96,18 @@ const Icons = {
 };
 
 // ─── HELPER FUNCTIONS ───
+
+// NEW: Function to extract dynamic initials
+function getInitials(user) {
+  if (!user) return "--";
+  const source = user.name || user.email || "?";
+  const parts = source.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return source.slice(0, 2).toUpperCase();
+}
+
 function getStatus(val, type, threshold = 100) {
   if (type === "aqi") {
     // Dynamic logic based on user's threshold
@@ -486,7 +498,8 @@ export default function App() {
       <div className="app-wrap">
         <header className="app-header">
           <div className="user-badge" onClick={() => setTab("settings")}>
-            {avatar ? <img src={avatar} alt="P" /> : <span>JD</span>}
+            {/* UPDATED: Dynamically fetch initials for the top bar */}
+            {avatar ? <img src={avatar} alt="P" /> : <span>{getInitials(user)}</span>}
           </div>
           <div className="header-status">
             <span>{isActuallyOnline ? "CONNECTED" : "DISCONNECTED"}</span>
@@ -583,7 +596,14 @@ export default function App() {
             <div className="fade-in">
               <div className="ui-card" style={{textAlign:'center'}}>
                 <div style={{width: 90, height: 90, borderRadius:'50%', border:'3px solid var(--primary)', margin: '0 auto 15px', overflow:'hidden', background:'#131a26', display:'flex', alignItems:'center', justifyContent:'center'}}>
-                   {avatar ? <img src={avatar} style={{width:'100%'}} /> : <span style={{fontSize:24}}>JD</span>}
+                   {/* UPDATED: Dynamically fetch initials for the settings circle */}
+                   {avatar ? (
+                     <img src={avatar} style={{width:'100%'}} />
+                   ) : (
+                     <span style={{fontSize:24, fontWeight:'bold', textTransform: 'uppercase', color: 'var(--primary)'}}>
+                       {getInitials(user)}
+                     </span>
+                   )}
                 </div>
                 <h2 style={{fontSize:18, marginBottom:4}}>{user.name}</h2>
                 <p style={{fontSize:13, color:'var(--text-muted)'}}>{user.email}</p>
