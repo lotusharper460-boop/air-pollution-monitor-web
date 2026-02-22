@@ -5,363 +5,389 @@ import { useMQTT, authHelpers } from "../hooks/useMQTT";
 
 // ─── STYLES ──────────────────────────────────────────
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #03040b;
-    --card: #0b0f19;
-    --card2: #151b2b;
-    --border: #232d42;
-    --primary: #00f3ff;
-    --primary-dim: rgba(0, 243, 255, 0.15);
-    --secondary: #f72585;
-    --text: #e2e8f0;
-    --muted: #64748b;
-    --red: #ef4444;
-    --orange: #f59e0b;
-    --font-display: 'Orbitron', monospace;
-    --font-body: 'Rajdhani', sans-serif;
-    --radius: 2px;
+    --bg: #0b111a;
+    --card: #1a222e;
+    --primary: #00d1e0;
+    --text: #ffffff;
+    --text-muted: #94a3b8;
+    --red: #ff4d4d;
+    --orange: #ffa726;
+    --blue: #29b6f6;
+    --green: #4ade80;
+    --font-main: 'Inter', sans-serif;
   }
 
-  body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; overflow-x: hidden; user-select: none; -webkit-user-select: none; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-main); min-height: 100vh; overflow-x: hidden; }
 
-  .app { max-width: 430px; margin: 0 auto; min-height: 100vh; position: relative; background: var(--bg); display: flex; flex-direction: column; }
+  .app-wrap { width: 100%; max-width: 450px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; position: relative; }
 
-  .app::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 243, 255, 0.03) 2px, rgba(0, 243, 255, 0.03) 4px); pointer-events: none; z-index: 999; }
+  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 20px; position: sticky; top: 0; z-index: 100; background: var(--bg); }
+  .user-badge { width: 42px; height: 42px; border-radius: 50%; overflow: hidden; background: #232d3d; border: 2px solid var(--primary); cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+  .user-badge img { width: 100%; height: 100%; object-fit: cover; }
+  .header-status { font-size: 11px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
 
-  .header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: var(--card); border-bottom: 2px solid var(--primary); position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px var(--primary-dim); }
-  .header-avatar { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--primary); background: var(--card2); overflow: hidden; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: bold; color: var(--primary); }
-  .header-avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .esp-status { display: flex; flex-direction: column; align-items: flex-end; }
-  .sync-dot { width: 8px; height: 8px; border-radius: 50%; animation: pulse 2s infinite; margin-top: 4px; }
+  .content { flex: 1; padding: 10px 20px 110px; }
 
-  .content { flex: 1; overflow-y: auto; padding: 16px; padding-bottom: 90px; }
+  .hazard-banner { background: rgba(255, 77, 77, 0.12); border: 1px solid var(--red); border-radius: 12px; padding: 16px; margin-bottom: 20px; animation: slideDown 0.3s ease; }
+  .hazard-title { color: var(--red); font-weight: 700; font-size: 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .hazard-body { font-size: 13px; color: #ffb3b3; line-height: 1.4; }
 
-  .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: var(--card); border-top: 1px solid var(--border); display: flex; padding: 10px 0 20px; z-index: 100; }
-  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; padding: 4px; transition: 0.2s; }
-  .nav-item svg { width: 22px; height: 22px; transition: 0.2s; }
-  .nav-label { font-family: var(--font-display); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; }
-  .nav-item.active .nav-label, .nav-item.active svg { color: var(--primary); filter: drop-shadow(0 0 5px var(--primary)); }
-  .nav-item:not(.active) .nav-label, .nav-item:not(.active) svg { color: var(--muted); }
+  .ui-card { background: var(--card); border-radius: 24px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.3); position: relative; }
+  .card-label { text-align: center; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-top: 15px; font-weight: 700; }
+  .card-status { text-align: center; font-weight: 700; font-size: 15px; margin-top: 4px; }
 
-  .card { background: linear-gradient(135deg, var(--card) 0%, var(--bg) 100%); border: 1px solid var(--border); border-left: 3px solid var(--primary); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; position: relative; }
-  .card-title { font-family: var(--font-display); font-size: 11px; letter-spacing: 2px; color: var(--secondary); text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-  .card-title::before { content: '■'; color: var(--primary); font-size: 8px; }
-
-  .gauge-wrap { display: flex; flex-direction: column; align-items: center; padding: 16px; background: var(--card2); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; position: relative; }
-  .gauge-value { font-family: var(--font-display); font-size: 28px; font-weight: 700; }
-  .gauge-unit { font-family: var(--font-body); font-size: 12px; color: var(--muted); margin-top: -4px; }
-  .gauge-label { font-family: var(--font-display); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; margin-top: 8px; }
-  .gauge-status { font-family: var(--font-body); font-size: 14px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .gauge-container { display: flex; flex-direction: column; align-items: center; }
   
-  .status-good { color: var(--primary); }
-  .status-moderate { color: var(--orange); }
-  .status-poor { color: var(--red); }
-
-  .chart-container { position: relative; width: 100%; height: 180px; }
-  .chart-tooltip { background: var(--card); border: 1px solid var(--primary); border-radius: 0; padding: 10px; font-size: 12px; white-space: nowrap; box-shadow: 0 0 10px var(--primary-dim); position: absolute; pointer-events: none; z-index: 10;}
-  .t-row { display: flex; gap: 8px; align-items: center; margin-bottom: 2px; font-weight: 600; }
-
-  .history-header { display: flex; gap: 8px; padding: 8px 12px; color: var(--secondary); font-size: 11px; font-family: var(--font-display); letter-spacing: 1px; border-bottom: 1px solid var(--border); text-transform: uppercase; }
-  .history-row { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid var(--border); align-items: center; font-size: 14px; font-weight: 600; transition: 0.2s; cursor: pointer; }
-  .history-time { font-size: 11px; color: var(--muted); font-family: var(--font-display); line-height: 1.4; }
-  .history-aqi { color: var(--primary); font-weight: 700; }
-
-  .checkbox { width: 16px; height: 16px; border: 1px solid var(--primary); background: transparent; appearance: none; outline: none; cursor: pointer; position: relative; border-radius: 2px; }
+  .log-row { display: grid; grid-template-columns: 30px 1fr 1fr 1fr 40px; padding: 16px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); align-items: center; font-size: 13px; transition: 0.2s; }
+  .log-row.selected { background: rgba(0, 209, 224, 0.1); }
+  .checkbox { width: 16px; height: 16px; border: 2px solid var(--primary); border-radius: 4px; appearance: none; cursor: pointer; }
   .checkbox:checked { background: var(--primary); }
-  .checkbox:checked::after { content: '✔'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #000; font-size: 10px; font-family: sans-serif; }
 
-  .input-field, .custom-select { background: var(--bg); border: 1px solid var(--border); border-radius: 0; color: var(--primary); padding: 14px 16px; font-family: var(--font-display); font-size: 13px; width: 100%; outline: none; transition: 0.2s; }
-  .input-field:focus, .custom-select:focus { border-color: var(--primary); box-shadow: 0 0 8px var(--primary-dim); }
-  .input-label { font-size: 11px; font-weight: 700; margin-bottom: 8px; color: var(--secondary); letter-spacing: 2px; font-family: var(--font-display); text-transform: uppercase; }
-  input[type=range] { width: 100%; accent-color: var(--primary); cursor: pointer; margin-top: 10px; }
+  .primary-btn { width: 100%; background: var(--primary); color: #000; border: none; border-radius: 16px; padding: 16px; font-weight: 700; font-size: 14px; cursor: pointer; transition: 0.2s; }
+  .small-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--text-muted); color: var(--text-muted); border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; }
+  .danger-text { color: var(--red); border-color: rgba(255, 77, 77, 0.4); background: rgba(255, 77, 77, 0.1); }
 
-  .btn-primary { background: var(--primary-dim); border: 1px solid var(--primary); color: var(--primary); font-family: var(--font-display); font-size: 12px; letter-spacing: 3px; padding: 16px; border-radius: 0; width: 100%; cursor: pointer; font-weight: 700; transition: 0.2s; text-transform: uppercase; margin-top: 10px;}
-  .btn-primary:hover { background: var(--primary); color: #000; box-shadow: 0 0 15px var(--primary); }
-  .btn-danger { background: rgba(255,59,59,0.1); border: 1px solid var(--red); color: var(--red); font-family: var(--font-display); font-size: 12px; letter-spacing: 3px; padding: 16px; border-radius: 0; width: 100%; cursor: pointer; font-weight: 700; margin-top: 12px; transition: 0.2s; text-transform: uppercase; }
-  .btn-danger:hover { background: var(--red); color: #000; box-shadow: 0 0 15px var(--red); }
+  .styled-input, .styled-select { width: 100%; background: #131a26; border: 1.5px solid #232d3d; border-radius: 14px; padding: 14px 16px; color: #fff; font-size: 14px; outline: none; margin-top: 8px; }
+  .styled-input:focus { border-color: var(--primary); }
+  input[type=range] { width: 100%; accent-color: var(--primary); margin: 15px 0; cursor: pointer; }
 
-  .show-hide-btn { position: absolute; right: 10px; top: 12px; background: none; border: none; color: var(--secondary); cursor: pointer; font-family: var(--font-display); font-size: 10px; letter-spacing: 1px; }
+  /* Perfectly Centered Show/Hide Password Button */
+  .show-hide-btn { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; transition: 0.2s; }
+  .show-hide-btn:hover { color: var(--primary); }
 
-  .login-wrap { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; background: radial-gradient(circle at center, var(--card) 0%, var(--bg) 100%); }
-  .login-card { background: var(--card2); border: 1px solid var(--border); border-top: 3px solid var(--primary); padding: 36px 28px; width: 100%; max-width: 380px; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-  .login-title { font-family: var(--font-display); font-size: 18px; font-weight: 900; color: var(--primary); text-align: center; letter-spacing: 2px; margin-bottom: 8px; text-shadow: 0 0 10px var(--primary-dim); line-height: 1.4; }
-  .login-sub { text-align: center; color: var(--muted); font-size: 12px; margin-bottom: 32px; font-family: var(--font-display); letter-spacing: 2px; text-transform: uppercase; }
-  .login-link { text-align: center; margin-top: 20px; font-size: 12px; color: var(--muted); font-family: var(--font-display); letter-spacing: 1px; }
-  .login-link a { color: var(--secondary); cursor: pointer; font-weight: bold; }
+  .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 450px; background: #0f1724; display: flex; padding: 12px 0 28px; border-top: 1px solid #1c2533; z-index: 100; }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; color: var(--text-muted); }
+  .nav-item.active { color: var(--primary); }
+  .nav-label { font-size: 11px; font-weight: 600; }
 
-  .row-between { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-  .page-title { font-family: var(--font-display); font-size: 14px; letter-spacing: 3px; color: var(--primary); text-transform: uppercase; }
+  .toggle-wrap { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+  .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #232d3d; transition: .4s; border-radius: 24px; }
+  .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+  input:checked + .slider { background-color: var(--primary); }
+  input:checked + .slider:before { transform: translateX(20px); }
+  
+  @keyframes slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
   .fade-in { animation: fadeIn 0.4s ease forwards; }
 
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-  @keyframes fadeIn { from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:translateY(0)} }
+  /* Chart Legend */
+  .legend { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 20px; font-weight: 600; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
 `;
 
-// Added threshold parameter to dynamically adjust status labels
+// ─── SVG ICONS ───
+const Icons = {
+  Warning: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+  Monitor: () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>,
+  History: () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+  Settings: () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06-.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  Trash: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
+  Refresh: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>,
+  Eye: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>,
+  EyeOff: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+};
+
+// ─── HELPER FUNCTIONS ───
 function getStatus(val, type, threshold = 100) {
   if (type === "aqi") {
-    const elevated = Math.round(threshold / 2);
-    if (val < elevated) return { label: "Optimal", cls: "status-good" };
-    if (val < threshold) return { label: "Elevated", cls: "status-moderate" };
-    return { label: "Hazardous", cls: "status-poor" };
+    // Dynamic logic based on user's threshold
+    if (val < threshold / 2) return { label: "Good", color: "var(--green)" };
+    if (val < threshold) return { label: "Moderate", color: "var(--orange)" };
+    return { label: "Poor", color: "var(--red)" };
   }
   if (type === "temp") {
-    if (val < 20) return { label: "Sub-Optimal", cls: "status-moderate" };
-    if (val <= 28) return { label: "Nominal", cls: "status-good" };
-    return { label: "Critical", cls: "status-poor" };
+    if (val < 20) return { label: "Cold", color: "var(--blue)" };
+    if (val <= 30) return { label: "Average", color: "var(--green)" };
+    return { label: "Hot", color: "var(--red)" };
   }
   if (type === "humidity") {
-    if (val < 30) return { label: "Arid", cls: "status-moderate" };
-    if (val <= 60) return { label: "Nominal", cls: "status-good" };
-    return { label: "Saturated", cls: "status-moderate" };
+    if (val < 30) return { label: "Dry", color: "var(--orange)" };
+    if (val <= 60) return { label: "Comfortable", color: "var(--green)" };
+    return { label: "Humid", color: "var(--blue)" };
   }
 }
 
 function formatTime(d) { 
-  if (!(d instanceof Date)) d = new Date(d);
-  return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" }); 
-}
-function formatDate(d) { 
-  if (!(d instanceof Date)) d = new Date(d);
-  return (d.getMonth() + 1) + "/" + d.getDate() + " " + d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }); 
+  return new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); 
 }
 
 function playSound(type) {
-  if (type === "Silent") return;
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    const ctx = new AudioContext();
-    if (ctx.state === "suspended") ctx.resume();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const gain = ctx.createGain();
-    gain.gain.value = 0.5;
-    gain.connect(ctx.destination);
-    
+    gain.gain.value = 0.2;
     const osc = ctx.createOscillator();
-    osc.type = type === "Warning" ? "sawtooth" : type === "Alert" ? "sine" : "square";
-    osc.frequency.value = type === "Warning" ? 300 : type === "Alert" ? 600 : 440;
-    osc.connect(gain);
-    
-    osc.start();
-    osc.stop(ctx.currentTime + (type === "Alert" ? 0.2 : 0.5));
-    setTimeout(() => ctx.close(), 1000);
+    osc.type = type === "Warning" ? "sawtooth" : "square";
+    osc.frequency.value = type === "Warning" ? 300 : 600;
+    osc.connect(gain); 
+    gain.connect(ctx.destination);
+    osc.start(); 
+    osc.stop(ctx.currentTime + 0.3);
   } catch (e) {}
 }
 
-function CircularGauge({ value, unit, label, color, min = 0, max = 600, type, threshold = 100 }) {
-  const r = 70, cx = 85, cy = 85, stroke = 8;
-  const circumference = 2 * Math.PI * r;
-  const pct = Math.min(1, Math.max(0, (value - min) / (max - min)));
-  const rot = -135;
+// ─── COMPONENTS ───
+function CircularGauge({ value, unit, label, type, threshold = 100 }) {
   const status = getStatus(value, type, threshold);
+  const radius = 60;
+  const circ = 2 * Math.PI * radius;
+  const pct = Math.min(value, 600) / 600;
+  const offset = circ - (pct * circ);
 
   return (
-    <div className="gauge-wrap">
-      <div style={{ position: "absolute", top: 8, left: 8, fontSize: 10, color: "var(--muted)", fontFamily: "var(--font-display)" }}>SYS.GAUGE</div>
-      <svg width={170} height={150} viewBox="0 0 170 150">
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--bg)" strokeWidth={stroke + 4} strokeDasharray="4 6" transform={"rotate(" + rot + ", " + cx + ", " + cy + ")"} />
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeDasharray={(circumference * 0.75 * pct) + " " + circumference} strokeLinecap="butt" transform={"rotate(" + rot + ", " + cx + ", " + cy + ")"} style={{ filter: "drop-shadow(0 0 8px " + color + ")", transition: "stroke-dasharray 0.5s ease" }} />
-        <text x={cx} y={cy - 2} textAnchor="middle" fill={color} fontSize="32" fontFamily="Orbitron" fontWeight="900" style={{textShadow: "0 0 10px " + color}}>{value}</text>
-        <text x={cx} y={cy + 18} textAnchor="middle" fill="var(--muted)" fontSize="12" fontFamily="Rajdhani" fontWeight="700" letterSpacing="2">{unit}</text>
-      </svg>
-      <div className="gauge-label" style={{ color }}>{label}</div>
-      <div className={"gauge-status " + status.cls}>{status.label}</div>
+    <div className="ui-card">
+      <div className="gauge-container">
+        <svg width="150" height="150" viewBox="0 0 150 150">
+          <circle cx="75" cy="75" r={radius} fill="none" stroke="#232d3d" strokeWidth="12" />
+          <circle 
+            cx="75" cy="75" r={radius} fill="none" stroke={status.color} strokeWidth="12" 
+            strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+            transform="rotate(-90 75 75)" style={{ transition: "0.8s cubic-bezier(0.4, 0, 0.2, 1)" }}
+          />
+          <text x="75" y="72" textAnchor="middle" fill="#fff" fontSize="30" fontWeight="800" fontFamily="Inter">
+            {value}<tspan fontSize="12" fill="var(--text-muted)" fontWeight="500"> {unit}</tspan>
+          </text>
+        </svg>
+      </div>
+      <div className="card-label">{label}</div>
+      <div className="card-status" style={{ color: status.color }}>{status.label}</div>
     </div>
   );
 }
 
-function LineChart({ data }) {
-  const [tooltip, setTooltip] = useState(null);
-  const svgRef = useRef();
-  const W = 380, H = 160, PL = 32, PR = 12, PT = 12, PB = 28;
-  const iW = W - PL - PR, iH = H - PT - PB;
-
-  if (!data || data.length < 2) return <div style={{ height: 160, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--primary)", fontFamily: "var(--font-display)", fontSize: 11, letterSpacing: 2 }}>AWAITING SENSOR TELEMETRY...</div>;
-
-  const aqis = data.map(d => d.aqi);
-  const temps = data.map(d => d.temp);
-  const hums = data.map(d => d.humidity);
+// ─── MULTI-LINE CHART WITH VALUES ───
+function MultiLineChart({ data }) {
+  if (!data || data.length < 2) return <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "var(--text-muted)" }}>WAITING FOR SENSOR DATA...</div>;
   
-  const minAqi = Math.min(...aqis, 0);
-  const maxAqi = Math.max(...aqis, 100);
+  const W = 350, H = 140, PL = 25, PR = 10, PT = 10, PB = 10;
+  const recentData = data.slice(-20);
   
-  const minTemp = Math.min(...temps) - 2;
-  const maxTemp = Math.max(...temps) + 2;
+  const aqis = recentData.map(d => d.aqi);
+  const temps = recentData.map(d => d.temp);
+  const hums = recentData.map(d => d.humidity);
   
-  const minHum = Math.min(...hums) - 5;
-  const maxHum = Math.max(...hums) + 5;
-
-  const xScale = i => PL + (i / (data.length - 1)) * iW;
-  const yScale = (v, mn, mx) => PT + iH - ((v - mn) / (mx - mn || 1)) * iH;
-  const path = (arr, mn, mx) => arr.map((v, i) => (i === 0 ? "M" : "L") + xScale(i).toFixed(1) + "," + yScale(v, mn, mx).toFixed(1)).join(" ");
-
-  const ticks = 4;
-  const yLabels = Array.from({ length: ticks + 1 }, (_, i) => Math.round(minAqi + (maxAqi - minAqi) * i / ticks));
+  // Current specific values to show in legend
+  const curAqi = aqis[aqis.length - 1];
+  const curTemp = temps[temps.length - 1];
+  const curHum = hums[hums.length - 1];
+  
+  const maxVal = Math.max(...aqis, ...temps, ...hums, 100);
+  
+  const xScale = i => PL + (i / (recentData.length - 1)) * (W - PL - PR);
+  const yScale = v => (H - PB) - (v / maxVal) * (H - PT - PB);
+  
+  const pathAqi = aqis.map((v, i) => `${i === 0 ? "M" : "L"} ${xScale(i)},${yScale(v)}`).join(" ");
+  const pathTemp = temps.map((v, i) => `${i === 0 ? "M" : "L"} ${xScale(i)},${yScale(v)}`).join(" ");
+  const pathHum = hums.map((v, i) => `${i === 0 ? "M" : "L"} ${xScale(i)},${yScale(v)}`).join(" ");
 
   return (
-    <div className="chart-container" style={{ height: H + 20 }}>
-      <svg ref={svgRef} width="100%" viewBox={"0 0 " + W + " " + H} preserveAspectRatio="none"
-        onMouseMove={(e) => {
-          const rect = svgRef.current.getBoundingClientRect();
-          const mx = e.clientX - rect.left - PL;
-          const idx = Math.max(0, Math.min(data.length - 1, Math.round((mx / iW) * (data.length - 1))));
-          setTooltip({ x: xScale(idx), y: yScale(data[idx].aqi, minAqi, maxAqi), d: data[idx] });
-        }} 
-        onMouseLeave={() => setTooltip(null)} style={{ cursor: "crosshair", overflow: "visible" }}>
-        
-        {yLabels.map((v, i) => {
-          const y = PT + iH - (i / ticks) * iH;
-          return <g key={i}><line x1={PL} y1={y} x2={W - PR} y2={y} stroke="var(--border)" strokeWidth={1} strokeDasharray="2 4" /><text x={PL - 8} y={y + 4} textAnchor="end" fill="var(--muted)" fontSize="10" fontFamily="Orbitron">{v}</text></g>;
-        })}
-        
-        <path d={path(hums, minHum, maxHum)} fill="none" stroke="var(--muted)" strokeWidth={1.5} />
-        <path d={path(temps, minTemp, maxTemp)} fill="none" stroke="var(--secondary)" strokeWidth={1.5} />
-        <path d={path(aqis, minAqi, maxAqi)} fill="none" stroke="var(--primary)" strokeWidth={2} style={{ filter: "drop-shadow(0 0 4px var(--primary))" }} />
-        
-        {tooltip && <>
-          <line x1={tooltip.x} y1={PT} x2={tooltip.x} y2={PT + iH} stroke="var(--secondary)" strokeWidth={1} strokeDasharray="4 2" />
-          <circle cx={tooltip.x} cy={tooltip.y} r={4} fill="var(--bg)" stroke="var(--primary)" strokeWidth={2} />
-        </>}
-      </svg>
-      {tooltip && (
-        <div className="chart-tooltip" style={{ left: Math.min(tooltip.x + 10, 200), top: 10 }}>
-          <div style={{color: "var(--secondary)", fontFamily: "var(--font-display)", fontSize: 10, marginBottom: 6, borderBottom: "1px solid var(--border)", paddingBottom: 4}}>{formatTime(tooltip.d.timestamp)}</div>
-          <div className="t-row"><span style={{ color: "var(--primary)" }}>■</span> AQI: {tooltip.d.aqi}</div>
-          <div className="t-row"><span style={{ color: "var(--secondary)" }}>■</span> TEMP: {tooltip.d.temp}°C</div>
-          <div className="t-row"><span style={{ color: "var(--muted)" }}>■</span> HUM: {tooltip.d.humidity}%</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function LoginScreen({ onLogin }) {
-  const [isRegister, setIsRegister] = useState(false);
-  const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
-  const [confirmPass, setConfirmPass] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [showConfirmPass, setShowConfirmPass] = useState(false);
-  const [username, setUsername] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleAuth = async () => {
-    setError(""); 
-    if (isRegister && pass !== confirmPass) {
-      setError("DECRYPTION KEYS DO NOT MATCH");
-      return;
-    }
-    setLoading(true);
-    let res;
-    if (isRegister) res = await authHelpers.signUp(email, pass, username);
-    else res = await authHelpers.signIn(email, pass);
-    
-    setLoading(false);
-    if (res.error) setError(res.error.message);
-    else onLogin({ id: res.data.user.id, name: username || email.split("@")[0], email });
-  };
-
-  return (
-    <div className="login-wrap">
-      <div className="login-card fade-in">
-        <div style={{ position: "absolute", top: -14, left: 20, background: "var(--bg)", padding: "0 10px", color: "var(--primary)", fontFamily: "var(--font-display)", fontSize: 10, letterSpacing: 2 }}>SYS.AUTH</div>
-        <div className="login-title">AIR POLLUTION<br/>MONITORING SYSTEM</div>
-        <div className="login-sub">{isRegister ? "REGISTER OPERATIVE" : "SECURE TERMINAL ACCESS"}</div>
-        
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {isRegister && <div><div className="input-label">IDENTIFIER (USERNAME)</div><input className="input-field" value={username} onChange={e=>setUsername(e.target.value)} /></div>}
+    <div>
+      <div className="legend">
+        <div className="legend-item"><div className="legend-dot" style={{background: 'var(--primary)'}}></div> AQI: {curAqi}</div>
+        <div className="legend-item"><div className="legend-dot" style={{background: 'var(--red)'}}></div> Temp: {curTemp}°</div>
+        <div className="legend-item"><div className="legend-dot" style={{background: 'var(--blue)'}}></div> Hum: {curHum}%</div>
+      </div>
+      <div style={{ width: "100%", height: H, position: "relative" }}>
+        <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+          {/* Y-Axis Labels */}
+          <text x={PL - 5} y={yScale(maxVal)} fill="var(--text-muted)" fontSize="10" textAnchor="end" dominantBaseline="middle">{Math.round(maxVal)}</text>
+          <text x={PL - 5} y={yScale(maxVal/2)} fill="var(--text-muted)" fontSize="10" textAnchor="end" dominantBaseline="middle">{Math.round(maxVal/2)}</text>
+          <text x={PL - 5} y={yScale(0)} fill="var(--text-muted)" fontSize="10" textAnchor="end" dominantBaseline="middle">0</text>
           
-          <div><div className="input-label">EMAIL ADDRESS</div><input className="input-field" type="email" value={email} onChange={e=>setEmail(e.target.value)} /></div>
+          {/* Grid lines */}
+          <line x1={PL} y1={yScale(maxVal/2)} x2={W-PR} y2={yScale(maxVal/2)} stroke="#232d3d" strokeDasharray="4 4" />
+          <line x1={PL} y1={H-PB} x2={W-PR} y2={H-PB} stroke="#232d3d" />
           
-          <div>
-            <div className="input-label">DECRYPTION KEY (PASSWORD)</div>
-            <div style={{position: "relative"}}>
-              <input className="input-field" type={showPass ? "text" : "password"} value={pass} onChange={e=>setPass(e.target.value)} />
-              <button type="button" className="show-hide-btn" onClick={() => setShowPass(!showPass)}>{showPass ? "HIDE" : "SHOW"}</button>
-            </div>
-          </div>
-
-          {isRegister && (
-            <div>
-              <div className="input-label">CONFIRM DECRYPTION KEY</div>
-              <div style={{position: "relative"}}>
-                <input className="input-field" type={showConfirmPass ? "text" : "password"} value={confirmPass} onChange={e=>setConfirmPass(e.target.value)} />
-                <button type="button" className="show-hide-btn" onClick={() => setShowConfirmPass(!showConfirmPass)}>{showConfirmPass ? "HIDE" : "SHOW"}</button>
-              </div>
-            </div>
-          )}
-
-          <button className="btn-primary" onClick={handleAuth} disabled={loading}>{loading ? "PROCESSING..." : (isRegister ? "INITIALIZE" : "ACCESS TERMINAL")}</button>
-          {error && <div style={{ color: "var(--red)", fontSize: 12, textAlign: "center", fontFamily: "var(--font-display)" }}>ERR: {error}</div>}
-        </div>
-        
-        <div className="login-link">
-          {isRegister ? "EXISTING OPERATIVE? " : "NEW OPERATIVE? "}
-          <a onClick={() => { setIsRegister(!isRegister); setError(""); }}>{isRegister ? "SIGN IN" : "REGISTER"}</a>
-        </div>
+          {/* Data Lines */}
+          <path d={pathHum} fill="none" stroke="var(--blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{opacity: 0.8}} />
+          <path d={pathTemp} fill="none" stroke="var(--red)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{opacity: 0.8}} />
+          <path d={pathAqi} fill="none" stroke="var(--primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </div>
     </div>
   );
 }
 
+// ─── LOGIN / SIGNUP SCREEN ───
+function AuthScreen({ onLogin }) {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [username, setUsername] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  
+  // Show/Hide Password States
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+
+  const handleAuth = async () => {
+    setError("");
+    setLoading(true);
+    
+    if (!isLogin && pass !== confirmPass) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
+    let res;
+    if (isLogin) {
+      res = await authHelpers.signIn(email, pass);
+    } else {
+      res = await authHelpers.signUp(email, pass, username);
+      // Automatically log them in after a successful sign-up
+      if (res && !res.error) {
+         res = await authHelpers.signIn(email, pass);
+      }
+    }
+
+    setLoading(false);
+    
+    if (res?.error) {
+      setError(res.error.message);
+    } else if (res?.data?.user) {
+      const u = res.data.user;
+      onLogin({ id: u.id, name: username || u.user_metadata?.username || email.split("@")[0], email });
+    } else {
+      // Fallback if auth is bypassed or missing supabase keys temporarily
+      onLogin({ id: Date.now().toString(), name: username || email.split("@")[0], email });
+    }
+  };
+
+  return (
+    <div className="app-wrap" style={{justifyContent: 'center', padding: 20}}>
+      <div className="ui-card fade-in" style={{padding: 30}}>
+        <h1 style={{color: 'var(--primary)', marginBottom: 5, fontSize: 20, textAlign: 'center'}}>AIR MONITOR</h1>
+        <p style={{color: 'var(--text-muted)', fontSize: 13, marginBottom: 25, textAlign: 'center'}}>
+          {isLogin ? "Secure Terminal Access" : "Register New Operative"}
+        </p>
+
+        {error && <div style={{color: 'var(--red)', fontSize: 12, marginBottom: 15, textAlign: 'center', background: 'rgba(255,0,0,0.1)', padding: 10, borderRadius: 8}}>{error}</div>}
+
+        <div style={{display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20}}>
+          {!isLogin && (
+            <div>
+              <div style={{fontSize: 12, color: 'var(--text-muted)', marginBottom: 5, fontWeight: 600}}>Username</div>
+              <input className="styled-input" type="text" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Operative Name" style={{marginTop: 0}} />
+            </div>
+          )}
+          
+          <div>
+            <div style={{fontSize: 12, color: 'var(--text-muted)', marginBottom: 5, fontWeight: 600}}>Email Address</div>
+            <input className="styled-input" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="user@system.com" style={{marginTop: 0}} />
+          </div>
+
+          <div>
+            <div style={{fontSize: 12, color: 'var(--text-muted)', marginBottom: 5, fontWeight: 600}}>Passcode</div>
+            <div style={{position: 'relative'}}>
+              <input className="styled-input" style={{marginTop: 0, paddingRight: 40}} type={showPass ? "text" : "password"} value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" />
+              <button type="button" className="show-hide-btn" onClick={() => setShowPass(!showPass)}>
+                {showPass ? <Icons.EyeOff /> : <Icons.Eye />}
+              </button>
+            </div>
+          </div>
+
+          {!isLogin && (
+            <div>
+              <div style={{fontSize: 12, color: 'var(--text-muted)', marginBottom: 5, fontWeight: 600}}>Confirm Passcode</div>
+              <div style={{position: 'relative'}}>
+                <input className="styled-input" style={{marginTop: 0, paddingRight: 40}} type={showConfirmPass ? "text" : "password"} value={confirmPass} onChange={e=>setConfirmPass(e.target.value)} placeholder="••••••••" />
+                <button type="button" className="show-hide-btn" onClick={() => setShowConfirmPass(!showConfirmPass)}>
+                  {showConfirmPass ? <Icons.EyeOff /> : <Icons.Eye />}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button className="primary-btn" onClick={handleAuth} disabled={loading}>
+          {loading ? "PROCESSING..." : (isLogin ? "INITIALIZE SESSION" : "CREATE PROFILE")}
+        </button>
+
+        <p style={{marginTop: 20, fontSize: 12, color: "var(--text-muted)", textAlign: 'center'}}>
+          {isLogin ? "New User? " : "Already Registered? "}
+          <span style={{color: "var(--primary)", fontWeight: 700, cursor: 'pointer'}} onClick={() => {setIsLogin(!isLogin); setError("");}}>
+            {isLogin ? "Create Profile" : "Login Here"}
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ───
 export default function App() {
   const [user, setUser] = useState(null);
   const [tab, setTab] = useState("monitor");
   const [avatar, setAvatar] = useState(null);
+  
+  // Settings States
   const [alarmType, setAlarmType] = useState("Emergency");
-  const [aqiThreshold, setAqiThreshold] = useState(100); // Dynamic Slider State
-
-  // Selection & Deletion State
+  const [aqiThreshold, setAqiThreshold] = useState(340);
+  const [isSilent, setIsSilent] = useState(false);
+  
+  // Connection Watchdog State
+  const [isDataFlowing, setIsDataFlowing] = useState(false);
+  
+  // Logs Selection State
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedLogs, setSelectedLogs] = useState(new Set());
   const [hiddenLogs, setHiddenLogs] = useState(new Set());
   const pressTimer = useRef(null);
+  const watchdog = useRef(null);
 
-  const { latest, chartData, logs, espConnected, lastSync, refreshReadings } = useMQTT(user);
+  // IMPORT THE NEW `removeLogsFromAccount`
+  const { latest, chartData, logs, espConnected, lastSync, refreshReadings, removeLogsFromAccount } = useMQTT(user);
 
-  // LOAD SETTINGS ON START
   useEffect(() => {
     authHelpers.getSession().then(({ data }) => {
       const u = data?.session?.user;
       if (u) {
         setUser({ id: u.id, name: u.user_metadata?.username || u.email.split("@")[0], email: u.email });
         setAvatar(localStorage.getItem("user_avatar_" + u.id));
-        setAlarmType(localStorage.getItem("alarm_type") || "Emergency");
-        
-        const savedThreshold = localStorage.getItem("aqi_threshold");
-        if(savedThreshold) setAqiThreshold(Number(savedThreshold));
+        setAqiThreshold(Number(localStorage.getItem("aqi_threshold") || 340));
+        setIsSilent(localStorage.getItem("is_silent") === "true");
+        const savedAlarm = localStorage.getItem("alarm_type");
+        if (savedAlarm) setAlarmType(savedAlarm);
       }
     });
-    const { data: { subscription } } = authHelpers.onAuthChange((u) => {
-      if (u) {
-        setUser({ id: u.id, name: u.user_metadata?.username || u.email.split("@")[0], email: u.email });
-        setAvatar(localStorage.getItem("user_avatar_" + u.id));
-      } else setUser(null);
-    });
-    return () => subscription.unsubscribe();
   }, []);
 
-  // TRIGGER ALARM WHEN AQI CROSSES THRESHOLD
+  // 15-SECOND WATCHDOG LOGIC
   useEffect(() => {
-    if (latest && latest.aqi !== undefined) {
-      if (latest.aqi >= aqiThreshold && alarmType !== "Silent") {
-        playSound(alarmType);
-      }
+    if (latest && latest.timestamp) {
+      setIsDataFlowing(true);
+      if (watchdog.current) clearTimeout(watchdog.current);
+      watchdog.current = setTimeout(() => {
+        setIsDataFlowing(false);
+      }, 15000);
     }
-  }, [latest?.timestamp, aqiThreshold, alarmType]);
+  }, [latest]);
+
+  // Buzzer Trigger
+  useEffect(() => {
+    if (latest?.aqi >= aqiThreshold && !isSilent) {
+      playSound(alarmType);
+    }
+  }, [latest?.timestamp, aqiThreshold, isSilent, alarmType]);
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if(!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const res = ev.target.result;
-      setAvatar(res);
-      localStorage.setItem("user_avatar_" + user.id, res);
+      setAvatar(ev.target.result);
+      localStorage.setItem("user_avatar_" + user.id, ev.target.result);
     };
     reader.readAsDataURL(file);
   };
@@ -371,228 +397,262 @@ export default function App() {
     localStorage.removeItem("user_avatar_" + user.id);
   };
 
-  const handleSoundChange = (e) => {
-    const val = e.target.value;
-    setAlarmType(val);
-    localStorage.setItem("alarm_type", val);
-    playSound(val);
+  const handleLogout = async () => {
+    await authHelpers.signOut();
+    setUser(null); 
   };
 
-  const handleThresholdChange = (e) => {
-    const val = Number(e.target.value);
-    setAqiThreshold(val);
-    localStorage.setItem("aqi_threshold", val);
+  const handleDeleteAccount = async () => {
+    const confirmMessage = "WARNING: Are you sure you want to permanently disable your account?\\n\\nThis action will FREEZE your email. You will NEVER be able to log in or register a new account with this email address again.\\n\\nProceed with disable?";
+    
+    if(window.confirm(confirmMessage)) {
+        
+        // 1. Tell Supabase to mark the account as deleted (Soft Delete) FIRST
+        if (authHelpers.deleteAccount) {
+           await authHelpers.deleteAccount();
+        }
+
+        // 2. Clear out the saved profile images and settings
+        localStorage.clear();
+        
+        // 3. Ensure the session is closed and return to the login screen
+        await authHelpers.signOut();
+        setUser(null); 
+    }
   };
 
-  const getLogKey = (log) => log.id ? log.id : new Date(log.timestamp).getTime();
+  // ─── UPDATED TO USE log.id ───
+  const toggleSelection = (id) => {
+    const newSet = new Set(selectedLogs);
+    if (newSet.has(id)) newSet.delete(id); else newSet.add(id);
+    setSelectedLogs(newSet);
+  };
 
-  // --- LONG PRESS & SELECTION LOGIC ---
-  const handlePressStart = (key) => {
+  const handlePressStart = (id) => {
     pressTimer.current = setTimeout(() => {
       setIsSelecting(true);
-      toggleSelection(key);
+      toggleSelection(id);
     }, 500); 
   };
 
-  const handlePressEnd = () => {
-    if (pressTimer.current) clearTimeout(pressTimer.current);
-  };
-
-  const toggleSelection = (key) => {
-    const newSet = new Set(selectedLogs);
-    if (newSet.has(key)) newSet.delete(key);
-    else newSet.add(key);
-    setSelectedLogs(newSet);
-  };
-
-  const handleSelectAll = () => {
-    const newSet = new Set();
-    logs.slice(0, 20).forEach(log => newSet.add(getLogKey(log)));
-    setSelectedLogs(newSet);
-  };
-
-  const handleDeleteSelected = async () => {
-    const newHidden = new Set(hiddenLogs);
-    selectedLogs.forEach(key => newHidden.add(key));
-    setHiddenLogs(newHidden);
-    setIsSelecting(false);
+  const handleDeleteAllLogs = () => {
+    const allIds = logs.map(l => l.id); // Get IDs instead of timestamp
+    setHiddenLogs(new Set([...hiddenLogs, ...allIds]));
     setSelectedLogs(new Set());
-  };
-
-  const handleDeleteAll = async () => {
-    const newHidden = new Set(hiddenLogs);
-    logs.forEach(log => newHidden.add(getLogKey(log)));
-    setHiddenLogs(newHidden);
     setIsSelecting(false);
+    
+    if (removeLogsFromAccount) {
+      removeLogsFromAccount(allIds);
+    }
   };
 
-  if (!user) return <><style>{styles}</style><LoginScreen onLogin={setUser} /></>;
+  const downloadCSV = () => {
+    const visibleLogs = logs.filter(l => !hiddenLogs.has(l.id)); // Use ID
+    if (visibleLogs.length === 0) return;
+
+    const headers = ["Date", "Time", "AQI (PPM)", "Temperature (C)", "Humidity (%)"];
+    const csvRows = [headers.join(",")];
+
+    visibleLogs.forEach(log => {
+      const dateObj = new Date(log.timestamp);
+      const dateStr = dateObj.toLocaleDateString();
+      const timeStr = dateObj.toLocaleTimeString();
+      csvRows.push(`${dateStr},${timeStr},${log.aqi},${log.temp},${log.humidity}`);
+    });
+
+    const csvString = csvRows.join("\n");
+    const blob = new Blob([csvString], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.setAttribute("href", url);
+    a.setAttribute("download", "air_quality_logs.csv");
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  if (!user) return (
+    <>
+      <style>{styles}</style>
+      <AuthScreen onLogin={setUser} />
+    </>
+  );
+
+  const isHazard = latest?.aqi >= aqiThreshold;
+  const isActuallyOnline = espConnected && isDataFlowing;
 
   return (
     <>
       <style>{styles}</style>
-      <div className="app">
-        <div className="header">
-          <div className="esp-status">
-             <span style={{ fontFamily: "var(--font-display)", fontSize: 11, letterSpacing: 2, color: espConnected ? "var(--primary)" : "var(--red)" }}>
-               {espConnected ? "ESP32: CONNECTED" : "ESP32: DISCONNECTED"}
-             </span>
-             <div className="sync-dot" style={{ background: espConnected ? "var(--primary)" : "var(--red)", boxShadow: "0 0 10px " + (espConnected ? "var(--primary)" : "var(--red)") }} />
+      <div className="app-wrap">
+        <header className="app-header">
+          <div className="user-badge" onClick={() => setTab("settings")}>
+            {avatar ? <img src={avatar} alt="P" /> : <span>JD</span>}
           </div>
-          <div className="header-avatar" onClick={() => setTab("settings")}>
-            {avatar ? <img src={avatar} alt="Profile" /> : user.name[0]?.toUpperCase()}
+          <div className="header-status">
+            <span>{isActuallyOnline ? "CONNECTED" : "DISCONNECTED"}</span>
+            <div style={{width:8, height:8, borderRadius:'50%', background: isActuallyOnline ? 'var(--green)' : 'var(--red)'}} />
           </div>
-        </div>
+        </header>
 
         <div className="content">
           {tab === "monitor" && (
             <div className="fade-in">
-              <CircularGauge value={latest?.aqi || 0} unit="PPM" label="AIR TOXICITY" color="var(--primary)" type="aqi" threshold={aqiThreshold} />
-              <div style={{ display: "flex", gap: 12 }}>
-                <div style={{flex: 1}}><CircularGauge value={latest?.temp || 0} unit="°C" label="TEMP" color="var(--secondary)" type="temp" /></div>
-                <div style={{flex: 1}}><CircularGauge value={latest?.humidity || 0} unit="%" label="HUM" color="var(--muted)" type="humidity" /></div>
-              </div>
-              <div className="card" style={{ marginTop: 16 }}>
-                <div className="card-title">TREND ANALYSIS</div>
-                <LineChart data={chartData} />
-                <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--font-display)", marginTop: 16 }}>LAST SYNC: {lastSync ? formatTime(lastSync) : "--:--:--"}</div>
+              {isHazard && (
+                <div className="hazard-banner">
+                  <div className="hazard-title">
+                    <Icons.Warning /> HAZARD WARNING: POOR AIR QUALITY
+                  </div>
+                  <div className="hazard-body">
+                    Current Level: {latest.aqi} PPM (Threshold: {aqiThreshold} PPM)<br/>
+                    Current Temp: {latest.temp}°C
+                  </div>
+                </div>
+              )}
+              
+              <CircularGauge value={latest?.aqi || 0} unit="PPM" label="AIR QUALITY" type="aqi" threshold={aqiThreshold} />
+              <CircularGauge value={latest?.temp || 0} unit="°C" label="TEMPERATURE" type="temp" />
+              <CircularGauge value={latest?.humidity || 0} unit="%" label="HUMIDITY" type="humidity" />
+
+              <div className="ui-card">
+                <div style={{fontSize:13, fontWeight:700, color: 'var(--primary)', marginBottom: 15}}>REAL-TIME ANALYSIS</div>
+                <MultiLineChart data={chartData} />
+                <div style={{textAlign:'center', fontSize:11, color:'var(--text-muted)', marginTop: 15}}>
+                  LAST SYNC: {lastSync ? formatTime(lastSync) : "--:--:--"}
+                </div>
               </div>
             </div>
           )}
-          
+
           {tab === "history" && (
             <div className="fade-in">
-              <div className="row-between">
-                <div className="page-title">SENSOR LOGS</div>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  {!isSelecting ? (
-                    <>
-                      <button onClick={handleDeleteAll} style={{background: "none", border: "1px solid var(--red)", color: "var(--red)", padding: "8px 10px", cursor: "pointer", fontFamily: "var(--font-display)", fontSize: 10}}>[ DEL ALL ]</button>
-                      <button onClick={refreshReadings} style={{background: "none", border: "1px solid var(--secondary)", color: "var(--secondary)", padding: "8px 10px", cursor: "pointer", fontFamily: "var(--font-display)", fontSize: 10}}>[ REFRESH ]</button>
-                    </>
-                  ) : (
-                    <>
-                      <button onClick={handleSelectAll} style={{background: "none", border: "1px solid var(--primary)", color: "var(--primary)", padding: "8px 10px", cursor: "pointer", fontFamily: "var(--font-display)", fontSize: 10}}>[ ALL ]</button>
-                      <button onClick={() => { setIsSelecting(false); setSelectedLogs(new Set()); }} style={{background: "none", border: "1px solid var(--muted)", color: "var(--muted)", padding: "8px 10px", cursor: "pointer", fontFamily: "var(--font-display)", fontSize: 10}}>[ CANCEL ]</button>
-                    </>
-                  )}
+              <div className="ui-card" style={{padding:0, overflow:'hidden', paddingBottom: 20}}>
+                <div style={{display:'flex', justifyContent:'space-between', padding:20, alignItems:'center'}}>
+                   <h3 style={{fontSize:16}}>Recent Logs</h3>
+                   <div style={{display:'flex', gap: 8}}>
+                      <button onClick={handleDeleteAllLogs} className="small-btn danger-text"><Icons.Trash /> ALL</button>
+                      <button onClick={refreshReadings} className="small-btn"><Icons.Refresh /> REF</button>
+                   </div>
                 </div>
-              </div>
-
-              {isSelecting && selectedLogs.size > 0 && (
-                <button className="btn-danger fade-in" onClick={handleDeleteSelected} style={{marginTop: 0, marginBottom: 16}}>DELETE SELECTED ({selectedLogs.size})</button>
-              )}
-
-              <div className="card" style={{ padding: 0 }}>
-                <div className="history-header">
-                  {isSelecting && <div style={{width: 16}}></div>}
-                  <span style={{flex: 2}}>TIME</span><span style={{flex: 1}}>AQI</span><span style={{flex: 1}}>TMP</span><span style={{flex: 1}}>HUM</span>
+                
+                <div className="log-row" style={{background:'#131a26', color:'var(--text-muted)', fontSize:11, fontWeight:800}}>
+                  <span></span><span>TIME</span><span>AQI</span><span>TMP</span><span></span>
                 </div>
-                {logs
-                  .map(log => ({ ...log, uniqueKey: getLogKey(log) }))
-                  .filter(log => !hiddenLogs.has(log.uniqueKey))
-                  .slice(0, 20)
-                  .map((log) => (
+
+                {/* UPDATED: Filtering and mapping by ID */}
+                {logs.filter(l => l.id && !hiddenLogs.has(l.id)).slice(0, 15).map((log, i) => (
                   <div 
-                    className="history-row" 
-                    key={log.uniqueKey}
-                    style={{ background: selectedLogs.has(log.uniqueKey) ? 'var(--card2)' : 'transparent' }}
-                    onMouseDown={() => handlePressStart(log.uniqueKey)}
-                    onMouseUp={handlePressEnd}
-                    onMouseLeave={handlePressEnd}
-                    onTouchStart={() => handlePressStart(log.uniqueKey)}
-                    onTouchEnd={handlePressEnd}
-                    onClick={() => { if (isSelecting) toggleSelection(log.uniqueKey); }}
+                    key={log.id} 
+                    className={`log-row ${selectedLogs.has(log.id) ? 'selected' : ''}`}
+                    onMouseDown={() => handlePressStart(log.id)}
+                    onMouseUp={() => clearTimeout(pressTimer.current)}
+                    onTouchStart={() => handlePressStart(log.id)}
+                    onTouchEnd={() => clearTimeout(pressTimer.current)}
+                    onClick={() => isSelecting && toggleSelection(log.id)}
                   >
-                    {isSelecting && (
-                      <div style={{width: 16, display: 'flex', alignItems: 'center'}}>
-                        <input type="checkbox" className="checkbox" checked={selectedLogs.has(log.uniqueKey)} readOnly />
-                      </div>
-                    )}
-                    <div className="history-time" style={{flex: 2}}>{formatDate(log.timestamp)}</div>
-                    <div className="history-aqi" style={{flex: 1, color: log.aqi >= aqiThreshold ? "var(--red)" : "var(--primary)"}}>{log.aqi}</div>
-                    <div style={{color: "var(--secondary)", flex: 1}}>{log.temp}°</div>
-                    <div style={{color: "var(--muted)", flex: 1}}>{log.humidity}%</div>
+                    <div>{isSelecting && <input type="checkbox" checked={selectedLogs.has(log.id)} className="checkbox" readOnly />}</div>
+                    <span style={{fontSize:11, color:'var(--text-muted)'}}>{formatTime(log.timestamp)}</span>
+                    <span style={{fontWeight:700, color: log.aqi >= aqiThreshold ? 'var(--red)' : 'var(--text)'}}>{log.aqi}</span>
+                    <span>{log.temp}°</span>
+                    <span style={{cursor:'pointer', color:'var(--text-muted)'}} onClick={() => {
+                        setHiddenLogs(new Set([...hiddenLogs, log.id]));
+                        if (removeLogsFromAccount) removeLogsFromAccount([log.id]);
+                    }}><Icons.Trash /></span>
                   </div>
                 ))}
+
+                <div style={{ padding: '0 20px', marginTop: '20px' }}>
+                  <button className="primary-btn" onClick={downloadCSV} style={{ background: 'var(--card)', border: '1px solid var(--primary)', color: 'var(--primary)' }}>
+                    DOWNLOAD LOGS (CSV)
+                  </button>
+                </div>
               </div>
+              {isSelecting && (
+                <button className="primary-btn" style={{marginTop:15, background:'var(--red)'}} onClick={() => { 
+                    setHiddenLogs(new Set([...hiddenLogs, ...selectedLogs])); 
+                    if (removeLogsFromAccount) removeLogsFromAccount(Array.from(selectedLogs));
+                    setIsSelecting(false); 
+                    setSelectedLogs(new Set()); 
+                }}>
+                  DELETE SELECTED ({selectedLogs.size})
+                </button>
+              )}
             </div>
           )}
 
           {tab === "settings" && (
             <div className="fade-in">
-              <div className="card">
-                <div className="card-title">OPERATIVE PROFILE</div>
-                <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 16 }}>
-                  <div style={{ width: 60, height: 60, borderRadius: "50%", border: "2px solid var(--primary)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--card2)" }}>
-                    {avatar ? <img src={avatar} style={{width: "100%", height: "100%", objectFit: "cover"}} /> : <span style={{fontFamily: "var(--font-display)", fontSize: 24, color: "var(--primary)"}}>{user.name[0]?.toUpperCase()}</span>}
+              <div className="ui-card" style={{textAlign:'center'}}>
+                <div style={{width: 90, height: 90, borderRadius:'50%', border:'3px solid var(--primary)', margin: '0 auto 15px', overflow:'hidden', background:'#131a26', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                   {avatar ? <img src={avatar} style={{width:'100%'}} /> : <span style={{fontSize:24}}>JD</span>}
+                </div>
+                <h2 style={{fontSize:18, marginBottom:4}}>{user.name}</h2>
+                <p style={{fontSize:13, color:'var(--text-muted)'}}>{user.email}</p>
+                <div style={{display: 'flex', justifyContent: 'center', gap: 10, marginTop: 15}}>
+                  <input type="file" onChange={handleImageUpload} style={{display:'none'}} id="up" />
+                  <label htmlFor="up" className="small-btn" style={{margin: 0, color: 'var(--primary)', borderColor: 'var(--primary)'}}>NEW PHOTO</label>
+                  {avatar && <button onClick={handleRemoveImage} className="small-btn danger-text" style={{margin: 0}}><Icons.Trash /></button>}
+                </div>
+              </div>
+
+              <div className="ui-card">
+                <div style={{fontWeight:700, fontSize:14, marginBottom:15}}>Sound & Notifications</div>
+                
+                <div className="toggle-wrap">
+                  <span style={{fontSize:13, color:'var(--text)'}}>Silent Mode</span>
+                  <label className="switch">
+                    <input type="checkbox" checked={isSilent} onChange={(e) => {setIsSilent(e.target.checked); localStorage.setItem("is_silent", e.target.checked);}} />
+                    <span className="slider"></span>
+                  </label>
+                </div>
+
+                <div style={{marginTop: 20}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                     <span style={{fontSize:12, color:'var(--text-muted)'}}>Alarm Tone Type</span>
+                     <button onClick={() => playSound(alarmType)} className="small-btn">TEST AUDIO</button>
                   </div>
-                  <div>
-                    <div style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "var(--primary)" }}>{user.name}</div>
-                    <div style={{ fontSize: 12, color: "var(--muted)" }}>{user.email}</div>
-                  </div>
-                </div>
-                
-                <div className="input-label">PROFILE PHOTO</div>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  <input type="file" accept="image/*" onChange={handleImageUpload} style={{fontFamily: "var(--font-body)", fontSize: 12, color: "var(--muted)", flex: 1}} />
-                  {avatar && (
-                    <button onClick={handleRemoveImage} style={{background: "var(--card2)", border: "1px solid var(--red)", color: "var(--red)", padding: "6px 12px", cursor: "pointer", fontFamily: "var(--font-display)", fontSize: 10, height: "100%"}}>
-                      [ REMOVE ]
-                    </button>
-                  )}
+                  <select className="styled-select" value={alarmType} onChange={(e) => {setAlarmType(e.target.value); localStorage.setItem("alarm_type", e.target.value);}}>
+                    <option value="Emergency">Emergency Beep</option>
+                    <option value="Warning">Warning Chime</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="card">
-                <div className="card-title" style={{color: "var(--orange)"}}>SENSOR CALIBRATION</div>
-                <div className="input-label" style={{marginTop: 10}}>HAZARDOUS AQI THRESHOLD: <span style={{color: "var(--primary)"}}>{aqiThreshold} PPM</span></div>
-                
-                <input type="range" min="50" max="500" step="10" value={aqiThreshold} onChange={handleThresholdChange} />
-                
-                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-display)', marginTop: 4}}>
-                  <span>50 (STRICT)</span>
-                  <span>500 (LOOSE)</span>
+              <div className="ui-card">
+                <div style={{fontWeight:700, fontSize:14, marginBottom:10}}>Calibration</div>
+                <div style={{display:'flex', justifyContent:'space-between', fontSize:13, color:'var(--text-muted)'}}>
+                  <span>Poor Air Threshold (PPM)</span>
+                  <span style={{color:'var(--primary)', fontWeight:800}}>{aqiThreshold}</span>
                 </div>
+                <input type="range" min="100" max="600" value={aqiThreshold} onChange={(e) => {setAqiThreshold(e.target.value); localStorage.setItem("aqi_threshold", e.target.value);}} />
                 
-                <div style={{fontSize: 10, color: 'var(--muted)', marginTop: 12, fontFamily: 'var(--font-display)', lineHeight: 1.6}}>
-                  <span style={{color: "var(--primary)"}}>■ OPTIMAL:</span> &lt; {Math.round(aqiThreshold / 2)}<br/>
-                  <span style={{color: "var(--orange)"}}>■ ELEVATED:</span> &lt; {aqiThreshold}<br/>
-                  <span style={{color: "var(--red)"}}>■ HAZARDOUS:</span> &gt;= {aqiThreshold}
+                <div style={{background:'#131a26', padding:14, borderRadius:12, marginTop:10, display:'flex', justifyContent:'space-between', fontSize:12}}>
+                   <span>Current Sensor Reading:</span>
+                   <span style={{color: isHazard ? 'var(--red)' : 'var(--green)', fontWeight:800}}>{latest?.aqi || 0} PPM</span>
                 </div>
               </div>
 
-              <div className="card">
-                <div className="card-title" style={{color: "var(--red)"}}>AUDIO & ALERTS</div>
-                
-                <div className="input-label" style={{marginTop: 10}}>ALERT SOUND TYPE</div>
-                <select className="custom-select" value={alarmType} onChange={handleSoundChange}>
-                  <option value="Emergency">Emergency Beep</option>
-                  <option value="Warning">Warning Chime</option>
-                  <option value="Alert">Short Alert</option>
-                  <option value="Silent">Silent (No Sound)</option>
-                </select>
-
-                <button onClick={() => playSound(alarmType)} style={{background: "var(--card2)", color: "var(--secondary)", border: "1px solid var(--secondary)", padding: "10px", width: "100%", marginTop: 10, cursor: "pointer", fontFamily: "var(--font-display)", fontSize: 12}}>TEST AUDIO</button>
+              <div style={{display: 'flex', gap: 10}}>
+                <button className="primary-btn" style={{background:'rgba(255, 77, 77, 0.1)', color:'var(--red)', border:'1px solid var(--red)'}} onClick={handleLogout}>LOG OUT</button>
+                <button className="primary-btn" style={{background:'var(--red)', color:'#fff', width: 'auto'}} onClick={handleDeleteAccount}><Icons.Trash /></button>
               </div>
-              
-              <button className="btn-danger" onClick={() => { setAvatar(null); authHelpers.signOut(); }}>DISCONNECT TERMINAL</button>
             </div>
           )}
         </div>
 
-        <div className="bottom-nav">
-          {[ 
-            { id: "monitor", label: "MONITOR", path: "M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" },
-            { id: "history", label: "LOGS", path: "M1 4v6h6M3.51 15a9 9 0 1 0 .49-3" },
-            { id: "settings", label: "SETTINGS", path: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06-.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" }
-          ].map(t => (
-            <div key={t.id} className={tab === t.id ? "nav-item active" : "nav-item"} onClick={() => setTab(t.id)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={tab === t.id ? 2 : 1.5}><path d={t.path}/></svg>
-              <span className="nav-label">{t.label}</span>
-            </div>
-          ))}
-        </div>
+        <nav className="bottom-nav">
+          <div className={`nav-item ${tab === "monitor" ? "active" : ""}`} onClick={() => setTab("monitor")}>
+            <Icons.Monitor />
+            <span className="nav-label">Monitor</span>
+          </div>
+          <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => setTab("history")}>
+            <Icons.History />
+            <span className="nav-label">History</span>
+          </div>
+          <div className={`nav-item ${tab === "settings" ? "active" : ""}`} onClick={() => setTab("settings")}>
+            <Icons.Settings />
+            <span className="nav-label">Settings</span>
+          </div>
+        </nav>
       </div>
     </>
   );
