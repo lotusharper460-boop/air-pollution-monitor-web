@@ -7,23 +7,50 @@ import { createClient } from "@supabase/supabase-js";
 /* ─────────────────────────────────────────────
    SUPABASE INIT
 ───────────────────────────────────────────── */
-
-const supabase = createClient(
+export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
 /* ─────────────────────────────────────────────
+   INACTIVITY AUTO-LOGOUT
+───────────────────────────────────────────── */
+export function useInactivityLogout(onTimeout, timeoutMs = 15 * 60 * 1000) {
+  const timerRef = useRef(null);
+  const reset = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(onTimeout, timeoutMs);
+  }, [onTimeout, timeoutMs]);
+
+  useEffect(() => {
+    const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click"];
+    events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
+    reset();
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, reset));
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [reset]);
+}
+
+/* ─────────────────────────────────────────────
    AUTH HELPERS
 ───────────────────────────────────────────── */
-
 export const authHelpers = {
   getSession: () => supabase.auth.getSession(),
 
+  // FIX: Only fire on meaningful auth events — not TOKEN_REFRESHED spam
   onAuthChange: (callback) =>
-    supabase.auth.onAuthStateChange((_, session) =>
-      callback(session?.user || null)
-    ),
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (
+        event === "SIGNED_IN" ||
+        event === "SIGNED_OUT" ||
+        event === "INITIAL_SESSION" ||
+        event === "USER_UPDATED"
+      ) {
+        callback(session?.user || null);
+      }
+    }),
 
   signUp: (email, password, username) =>
     supabase.auth.signUp({
@@ -33,30 +60,32 @@ export const authHelpers = {
     }),
 
   signIn: async (email, password) => {
-    const res = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
+    const res = await supabase.auth.signInWithPassword({ email, password });
     if (res.data?.user?.user_metadata?.account_deleted) {
       await supabase.auth.signOut();
-      return {
-        error: {
-          message:
-            "This account has been disabled. Please register a new account with a different email.",
-        },
-      };
+      return { error: { message: "This account has been disabled." } };
     }
-
     return res;
+  },
+
+  // FIX: Removed problematic access_type/prompt queryParams + clean redirectTo
+  signInWithGoogle: async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo:
+          typeof window !== "undefined"
+            ? `${window.location.origin}/`
+            : undefined,
+      },
+    });
+    return { error };
   },
 
   signOut: () => supabase.auth.signOut(),
 
   deleteAccount: async () => {
-    await supabase.auth.updateUser({
-      data: { account_deleted: true },
-    });
+    await supabase.auth.updateUser({ data: { account_deleted: true } });
     return supabase.auth.signOut();
   },
 };
@@ -64,7 +93,6 @@ export const authHelpers = {
 /* ─────────────────────────────────────────────
    MQTT HOOK
 ───────────────────────────────────────────── */
-
 export function useMQTT(user) {
   const [latest, setLatest] = useState(null);
   const [chartData, setChartData] = useState([]);
@@ -73,146 +101,131 @@ export function useMQTT(user) {
   const [lastSync, setLastSync] = useState(null);
 
   const clientRef = useRef(null);
+  const loadedUserIdRef = useRef(null);
 
-  /* ─────────────────────────────────────────────
-     FETCH EXISTING READINGS
-  ───────────────────────────────────────────── */
+  const resetState = useCallback(() => {
+    setLatest(null);
+    setChartData([]);
+    setLogs([]);
+    setEspConnected(false);
+    setLastSync(null);
+    loadedUserIdRef.current = null;
+  }, []);
 
   const refreshReadings = useCallback(async () => {
     if (!user) return;
 
     const { data, error } = await supabase
-      .from("telemetry")
+      .from("sensor_readings")
       .select("*")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
+      .order("recorded_at", { ascending: false })
       .limit(20);
 
     if (!error && data) {
+      if (loadedUserIdRef.current !== user.id) return;
+
       const formatted = data.map((d) => ({
-        ...d,
-        timestamp: new Date(d.created_at),
+        id: d.id,
+        aqi: d.aqi,
+        temp: d.temperature,
+        humidity: d.humidity,
+        timestamp: new Date(d.recorded_at),
       }));
 
       setLogs(formatted);
       setChartData(formatted.slice(0, 10).reverse());
-    } else {
-      console.error("Supabase fetch error:", error);
     }
   }, [user]);
 
-  /* ─────────────────────────────────────────────
-     MQTT CONNECTION
-  ───────────────────────────────────────────── */
-
   useEffect(() => {
-    if (!user) return;
-
-    refreshReadings();
-
-    if (
-      !process.env.NEXT_PUBLIC_MQTT_URL ||
-      !process.env.NEXT_PUBLIC_MQTT_USER ||
-      !process.env.NEXT_PUBLIC_MQTT_PASSWORD
-    ) {
-      console.error("Missing MQTT environment variables");
+    if (!user) {
+      resetState();
       return;
     }
 
-    const clientId = `web_${Math.random().toString(16).slice(2, 10)}`;
+    loadedUserIdRef.current = user.id;
+    refreshReadings();
 
     const client = mqtt.connect(process.env.NEXT_PUBLIC_MQTT_URL, {
-      clientId,
+      clientId: `web_${Math.random().toString(16).slice(2, 10)}`,
       username: process.env.NEXT_PUBLIC_MQTT_USER,
       password: process.env.NEXT_PUBLIC_MQTT_PASSWORD,
       protocol: "wss",
       path: "/mqtt",
       reconnectPeriod: 2000,
-      connectTimeout: 30 * 1000,
       clean: true,
     });
 
     clientRef.current = client;
 
     client.on("connect", () => {
-      console.log("✅ MQTT Connected");
       setEspConnected(true);
-
-      client.subscribe("env/telemetry", (err) => {
-        if (err) {
-          console.error("Subscription error:", err);
-        } else {
-          console.log("📡 Subscribed to env/telemetry");
-        }
-      });
+      client.subscribe("env/telemetry");
     });
 
     client.on("message", async (topic, message) => {
-      if (topic !== "env/telemetry") return;
+      if (topic !== "env/telemetry" || loadedUserIdRef.current !== user.id) return;
 
       try {
         const payload = JSON.parse(message.toString());
         const now = new Date();
 
+        const { data, error } = await supabase
+          .from("sensor_readings")
+          .insert([
+            {
+              user_id: user.id,
+              temperature: payload.temp,
+              humidity: payload.humidity,
+              aqi: payload.aqi,
+              recorded_at: now.toISOString(),
+              device_id: "esp32-01",
+            },
+          ])
+          .select();
+
+        if (error || !data?.[0]) return;
+
         const newEntry = {
-          ...payload,
+          id: data[0].id,
+          aqi: payload.aqi,
+          temp: payload.temp,
+          humidity: payload.humidity,
           timestamp: now,
-          id: `${now.getTime()}_${Math.random()}`,
         };
 
         setLatest(newEntry);
         setLastSync(now);
         setChartData((prev) => [...prev.slice(-9), newEntry]);
         setLogs((prev) => [newEntry, ...prev.slice(0, 19)]);
-
-        await supabase.from("telemetry").insert([
-          {
-            user_id: user.id,
-            temp: payload.temp,
-            humidity: payload.humidity,
-            aqi: payload.aqi,
-            created_at: now.toISOString(),
-          },
-        ]);
       } catch (err) {
-        console.error("Message parse error:", err);
+        console.error("MQTT Processing Error:", err);
       }
     });
 
-    client.on("error", (err) => {
-      console.error("MQTT Error:", err.message);
-      setEspConnected(false);
-    });
-
-    client.on("offline", () => {
-      console.warn("MQTT Offline");
-      setEspConnected(false);
-    });
-
-    client.on("reconnect", () => {
-      console.log("MQTT Reconnecting...");
-    });
+    client.on("error", () => setEspConnected(false));
+    client.on("offline", () => setEspConnected(false));
+    client.on("reconnect", () => setEspConnected(false));
 
     return () => {
-      if (clientRef.current) {
-        clientRef.current.end(true);
-        console.log("MQTT Connection Closed");
-      }
+      if (clientRef.current) clientRef.current.end(true);
     };
-  }, [user, refreshReadings]);
-
-  /* ─────────────────────────────────────────────
-     SOFT DELETE LOGS
-  ───────────────────────────────────────────── */
+  }, [user?.id, refreshReadings, resetState]);
 
   const removeLogsFromAccount = async (logIds) => {
     if (!user || !logIds?.length) return;
 
-    await supabase
-      .from("telemetry")
-      .update({ user_id: null })
+    const { error } = await supabase
+      .from("sensor_readings")
+      .delete()
       .eq("user_id", user.id)
       .in("id", logIds);
+
+    if (!error) {
+      setLogs((prev) => prev.filter((log) => !logIds.includes(log.id)));
+      setChartData((prev) => prev.filter((log) => !logIds.includes(log.id)));
+    }
   };
 
   return {
@@ -223,5 +236,6 @@ export function useMQTT(user) {
     lastSync,
     refreshReadings,
     removeLogsFromAccount,
+    resetState,
   };
 }
