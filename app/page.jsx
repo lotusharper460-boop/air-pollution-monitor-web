@@ -26,10 +26,11 @@ const styles = `
 
   .app-wrap { width: 100%; max-width: 450px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; position: relative; }
 
-  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 20px; position: sticky; top: 0; z-index: 100; background: var(--bg); }
-  .user-badge { width: 42px; height: 42px; border-radius: 50%; overflow: hidden; background: #232d3d; border: 2px solid var(--primary); cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; text-transform: uppercase; color: var(--primary); }
+  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; position: sticky; top: 0; z-index: 100; background: rgba(11, 17, 26, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.05); }
+  
+  .user-badge { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; background: #232d3d; border: 2px solid var(--primary); cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; text-transform: uppercase; color: var(--primary); flex-shrink: 0; }
   .user-badge img { width: 100%; height: 100%; object-fit: cover; }
-  .header-status { font-size: 11px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .header-status { font-size: 11px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
 
   .content { flex: 1; padding: 10px 20px 110px; }
 
@@ -137,11 +138,7 @@ function getInitials(user) {
   if (!user) return "--";
   const source = user.name || user.email || "?";
   const parts = source.trim().split(/\s+/);
-  
-  // ✅ IMPROVED: First letter of each name if two, otherwise just one
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return source.slice(0, 1).toUpperCase();
 }
 
@@ -304,8 +301,16 @@ function AuthScreen() {
   return (
     <div className="app-wrap" style={{ justifyContent: "center", padding: 20 }}>
       <div className="ui-card fade-in" style={{ padding: 30 }}>
-        <h1 style={{ color: "var(--primary)", marginBottom: 5, fontSize: 20, textAlign: "center" }}>AIR MONITOR</h1>
-        <p style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 25, textAlign: "center" }}>
+        
+        {/* LOGO AND TITLE ON LOGIN PAGE ONLY */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+            <img src="/logo1-removebg-preview.png" alt="OAU Logo" style={{ height: '80px', objectFit: 'contain' }} />
+        </div>
+        <h1 className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-400 text-center tracking-wider mb-2 uppercase">
+            Air Pollution<br/>Monitoring System
+        </h1>
+        
+        <p style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 25, textAlign: "center", marginTop: '5px' }}>
           {isLogin ? "Secure Terminal Access" : "Register New Operative"}
         </p>
 
@@ -393,7 +398,7 @@ export default function App() {
   const [avatar, setAvatar] = useState(null);
 
   const [alarmType, setAlarmType] = useState("Emergency");
-  const [aqiThreshold, setAqiThreshold] = useState(340);
+  const [aqiThreshold, setAqiThreshold] = useState(117); 
   const [isSilent, setIsSilent] = useState(false);
 
   const [isDataFlowing, setIsDataFlowing] = useState(false);
@@ -564,13 +569,27 @@ export default function App() {
     <>
       <style>{styles}</style>
       <div className="app-wrap">
+        
+        {/* ─── MAIN APP HEADER ─── */}
         <header className="app-header">
-          <div className="user-badge" onClick={() => setTab("settings")}>
-            {avatar ? <img src={avatar} alt="Profile" /> : <span>{getInitials(user)}</span>}
+          {/* LEFT: Logo Only */}
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <img 
+              src="/logo1-removebg-preview.png" 
+              alt="OAU Logo" 
+              style={{ width: "40px", height: "40px", objectFit: "contain" }} 
+            />
           </div>
-          <div className="header-status">
-            <span>{isActuallyOnline ? "CONNECTED" : "DISCONNECTED"}</span>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: isActuallyOnline ? "var(--green)" : "var(--red)" }} />
+
+          {/* RIGHT: Status Text + Dot + Profile Badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <div className="header-status">
+              <span>{isActuallyOnline ? "CONNECTED" : "DISCONNECTED"}</span>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: isActuallyOnline ? "var(--green)" : "var(--red)", boxShadow: isActuallyOnline ? "0 0 8px var(--green)" : "0 0 8px var(--red)" }} />
+            </div>
+            <div className="user-badge" onClick={() => setTab("settings")}>
+              {avatar ? <img src={avatar} alt="Profile" /> : <span>{getInitials(user)}</span>}
+            </div>
           </div>
         </header>
 
@@ -712,7 +731,9 @@ export default function App() {
                   <span>Poor Air Threshold (PPM)</span>
                   <span style={{ color: "var(--primary)", fontWeight: 800 }}>{aqiThreshold}</span>
                 </div>
-                <input type="range" min="100" max="600" value={aqiThreshold} onChange={(e) => { setAqiThreshold(Number(e.target.value)); localStorage.setItem("aqi_threshold", e.target.value); }} />
+                
+                <input type="range" min="10" max="600" value={aqiThreshold} onChange={(e) => { setAqiThreshold(Number(e.target.value)); localStorage.setItem("aqi_threshold", e.target.value); }} />
+                
                 <div style={{ background: "#131a26", padding: 14, borderRadius: 12, marginTop: 10, display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span>Current Sensor Reading:</span>
                   <span style={{ color: isHazard ? "var(--red)" : "var(--green)", fontWeight: 800 }}>{latest?.aqi || 0} PPM</span>
